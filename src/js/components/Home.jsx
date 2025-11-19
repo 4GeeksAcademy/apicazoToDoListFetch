@@ -19,8 +19,40 @@ export const Home = () => {
     setIsEdit(!isEdit);
   };
 
-  const handleDelete = () => {
-    console.log("click to delete");
+  const handleReset = () => {
+    editTask("");
+  };
+
+  const handleDelete = async (param) => {
+    const uri = `${baseURL}/todos/${param}/${hola}`;
+    const options = {
+      method: "DELETE",
+    };
+    const response = await fetch(uri, options);
+    if (!response.ok) {
+      console.log("error", response.status, response.statusText);
+
+      return;
+    }
+
+    console.log("Tarea eliminada");
+  };
+
+  const createUser = async () => {
+    const uri = `${baseURL}/users/${user}`;
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([]),
+    };
+    const response = await fetch(uri, options);
+    if (!response.ok) {
+      console.log("error", response.status, response.statusText);
+      return;
+    }
+    const data = await response.json();
+    console.log("Usuario creado", data);
+    getTodos();
   };
 
   const handleSubmitAdd = async (event) => {
@@ -70,12 +102,23 @@ export const Home = () => {
     setTodos(data.todos);
   };
 
+  {
+  }
+
   const deleteAllTasks = async () => {
     const uri = `${baseURL}/users/${user}`;
     const options = {
       method: "DELETE",
     };
     const response = await fetch(uri, options);
+    if (!response.ok) {
+      console.log("error", response.status, response.statusText);
+      return;
+    }
+
+    console.log("Tareas eliminadas");
+    await getTodos();
+    await createUser();
   };
 
   useEffect(() => {
@@ -114,8 +157,12 @@ export const Home = () => {
           <button type="submit" className="btn btn-primary me-2">
             Submit
           </button>
-          <button type="reset" className="btn btn-secondary">
-            Submit
+          <button
+            onChange={handleReset}
+            type="reset"
+            className="btn btn-secondary"
+          >
+            Reset
           </button>
         </form>
       ) : (
@@ -134,11 +181,6 @@ export const Home = () => {
           </div>
         </form>
       )}
-      <div className="text-center mb-4">
-        <button className="btn btn-danger btn-sm" onClick={deleteAllTasks}>
-          Eliminar Todas las Tareas
-        </button>
-      </div>
       <hr className="my-3" />
       <h2 className="text-primary mt-5">List</h2>
       {/* UL con listados */}
@@ -149,21 +191,22 @@ export const Home = () => {
               key={item.id}
               className="hidden-icon list-group-item d-flex justify-content-between"
             >
-              {item.label}
-              <div>
-                {item.is_done ? (
-                  <i className="far fa-thumbs-up text-success me-2"></i>
-                ) : (
-                  <i className="fas fa-times-circle text-danger me-2"></i>
-                )}
-                {item.id}
-              </div>
+              <span className="">
+                {item.label}
+                <div>
+                  {item.is_done ? (
+                    <i className="far fa-thumbs-up text-success me-2"></i>
+                  ) : (
+                    <i className="fas fa-times-circle text-danger me-2 justify-content-start"></i>
+                  )}
+                </div>
+              </span>
               <div>
                 <span onClick={handleEdit}>
                   <i className="fas fa-edit text-primary me-2"></i>
                 </span>
 
-                <span onClick={handleDelete}>
+                <span onClick={handleDelete(item.id)}>
                   <i className="fas fa-trash text-danger"></i>
                 </span>
               </div>
@@ -174,6 +217,16 @@ export const Home = () => {
           {todos.length == 0 ? "No tienes" : todos.length} tareas pendientes
         </li>
       </ul>
+      <div className="text-center mb-4">
+        <button className="btn btn-danger btn-sm" onClick={deleteAllTasks}>
+          Eliminar Todas las Tareas
+        </button>
+      </div>
+      <div className="text-center mb-4">
+        <button className="btn btn-success btn-sm" onClick={createUser}>
+          Crea el usuario
+        </button>
+      </div>
     </div>
   );
 };
