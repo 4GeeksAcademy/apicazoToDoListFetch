@@ -6,36 +6,74 @@ export const Home = () => {
 
   const [newTask, setNewTask] = useState("");
   const [editTask, setEditTask] = useState("");
-  const [editCompleted, setEditCompleted] = useState();
+  const [editCompleted, setEditCompleted] = useState(false);
   const [todos, setTodos] = useState([]);
-  const [editTodo, setEditTodo] = useState({});
+  const [editTodo, setEditTodo] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
 
   const handleNewTask = (event) => setNewTask(event.target.value);
-  const handleEditTask = (event) => setEditTask(event.target.value);
   const handleEditCompleted = (event) => setEditCompleted(event.target.checked);
 
-  const handleEdit = () => {
-    setIsEdit(!isEdit);
+  // Al hacer click en editar guardo la tarea completa y abro el formulario
+  const handleEdit = (todo) => {
+    setEditTodo(todo);
+    setEditTask(todo.label ?? "");
+    setEditCompleted(Boolean(todo.is_done));
+    setIsEdit(true);
   };
 
   const handleReset = () => {
-    editTask("");
+    setEditTask("");
+    setEditCompleted(false);
+    setEditTodo(null);
+    setIsEdit(false);
+  };
+
+  // PUT para actualizar la tarea seleccionada
+  const handleUpdateTask = async (event) => {
+    event.preventDefault();
+    if (!editTodo || !editTodo.id) {
+      console.log("No hay tarea seleccionada para editar");
+      return;
+    }
+
+    const uri = `${baseURL}/todos/${editTodo.id}`;
+    const body = {
+      label: editTask,
+      is_done: editCompleted,
+    };
+
+    const response = await fetch(uri, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      console.log("Error al actualizar", response.status);
+      return;
+    }
+
+    // refresco lista y limpio estado de edición
+    await getTodos();
+    setIsEdit(false);
+    setEditTodo(null);
+    setEditTask("");
+    setEditCompleted(false);
   };
 
   const handleDelete = async (param) => {
-    const uri = `${baseURL}/todos/${param}/${hola}`;
+    const uri = `${baseURL}/todos/${param}`;
     const options = {
       method: "DELETE",
     };
     const response = await fetch(uri, options);
     if (!response.ok) {
       console.log("error", response.status, response.statusText);
-
       return;
     }
-
     console.log("Tarea eliminada");
+    await getTodos();
   };
 
   const createUser = async () => {
@@ -57,6 +95,8 @@ export const Home = () => {
 
   const handleSubmitAdd = async (event) => {
     event.preventDefault();
+    if (!newTask.trim()) return;
+
     const dataToSend = {
       label: newTask,
       is_done: false,
@@ -72,13 +112,12 @@ export const Home = () => {
     const response = await fetch(uri, options);
     if (!response.ok) {
       console.log("error", response.status, response.statusText);
-      if (response.status == "404") {
+      if (response.status === 404) {
         console.log("Por favor crea el usuario", user);
       }
       return;
     }
-    const data = await response.json();
-    console.log(data);
+    await response.json();
     setNewTask("");
     getTodos();
   };
@@ -91,19 +130,14 @@ export const Home = () => {
     const response = await fetch(uri, options);
     if (!response.ok) {
       console.log("error", response.status, response.statusText);
-      if (response.status == "404") {
+      if (response.status === 404) {
         console.log("Por favor crea el usuario", user);
       }
       return;
     }
     const data = await response.json();
-    console.log(data);
-    //logica de la aplicación
-    setTodos(data.todos);
+    setTodos(data.todos || []);
   };
-
-  {
-  }
 
   const deleteAllTasks = async () => {
     const uri = `${baseURL}/users/${user}`;
@@ -115,7 +149,6 @@ export const Home = () => {
       console.log("error", response.status, response.statusText);
       return;
     }
-
     console.log("Tareas eliminadas");
     await getTodos();
     await createUser();
@@ -123,23 +156,23 @@ export const Home = () => {
 
   useEffect(() => {
     getTodos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="container my-5">
       <h1 className="text-success">Todo List with Fetch</h1>
+
       {isEdit ? (
-        <form>
+        <form onSubmit={handleUpdateTask}>
           <div className="text-start mb-3">
-            <label htmlFor="exampleInputPassword1" className="form-label">
-              Edit Task
-            </label>
+            <label className="form-label">Edit Task</label>
             <input
               type="text"
               className="form-control"
-              id="exampleInputPassword1"
+              id="editTask"
               value={editTask}
-              onChange={handleEditTask}
+              onChange={(e) => setEditTask(e.target.value)}
             />
           </div>
           <div className="text-start mb-3 form-check">
@@ -158,11 +191,11 @@ export const Home = () => {
             Submit
           </button>
           <button
-            onChange={handleReset}
-            type="reset"
+            onClick={handleReset}
+            type="button"
             className="btn btn-secondary"
           >
-            Reset
+            Cancel
           </button>
         </form>
       ) : (
@@ -179,11 +212,15 @@ export const Home = () => {
               onChange={handleNewTask}
             />
           </div>
+          <button type="submit" className="btn btn-success">
+            Add
+          </button>
         </form>
       )}
+
       <hr className="my-3" />
       <h2 className="text-primary mt-5">List</h2>
-      {/* UL con listados */}
+
       <ul className="list-group">
         {todos.map((item) => {
           return (
@@ -191,7 +228,7 @@ export const Home = () => {
               key={item.id}
               className="hidden-icon list-group-item d-flex justify-content-between"
             >
-              <span className="">
+              <span>
                 {item.label}
                 <div>
                   {item.is_done ? (
@@ -202,11 +239,17 @@ export const Home = () => {
                 </div>
               </span>
               <div>
-                <span onClick={handleEdit}>
+                <span
+                  onClick={() => handleEdit(item)}
+                  style={{ cursor: "pointer" }}
+                >
                   <i className="fas fa-edit text-primary me-2"></i>
                 </span>
 
-                <span onClick={handleDelete(item.id)}>
+                <span
+                  onClick={() => handleDelete(item.id)}
+                  style={{ cursor: "pointer" }}
+                >
                   <i className="fas fa-trash text-danger"></i>
                 </span>
               </div>
@@ -214,9 +257,10 @@ export const Home = () => {
           );
         })}
         <li className="list-group-item text-end bg-body-tertiary">
-          {todos.length == 0 ? "No tienes" : todos.length} tareas pendientes
+          {todos.length === 0 ? "No tienes" : todos.length} tareas pendientes
         </li>
       </ul>
+
       <div className="text-center mb-4">
         <button className="btn btn-danger btn-sm" onClick={deleteAllTasks}>
           Eliminar Todas las Tareas
